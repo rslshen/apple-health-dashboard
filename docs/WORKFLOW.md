@@ -87,12 +87,12 @@ After rendering:
 4. Add background only when it explains a visible pattern.
 5. Check layout, overlapping labels, legends, and right-column text length.
 
-### 7. Separate Personal Dashboard From Reusable Template
+### 7. Prepare A Reusable Template
 
-Keep the finished personal dashboard for private use. Create a generic template that:
+Create a generic template that:
 
 - Uses neutral titles and wording.
-- Does not include personal explanations.
+- Does not include user-specific explanations.
 - Reads the same processed CSV schema.
 - Includes data limitation language.
 - Lets other users replace the data and render their own dashboard.

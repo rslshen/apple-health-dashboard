@@ -19,7 +19,6 @@ This repository intentionally excludes:
 - `data/tmp/`
 - `data/processed/*.csv`
 - `*.html`
-- `Course_Project_Dashboard.Rmd` personal dashboard source
 - local PDFs and R session files
 
 Generated HTML dashboards are also excluded because interactive Plotly HTML can embed underlying data.

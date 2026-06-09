@@ -3,8 +3,7 @@ data/tmp/
 data/processed/*.csv
 !data/processed/.gitkeep
 *.html
-Course_Project_Dashboard.Rmd
-ANLY 512-Course Project.pdf
+*.pdf
 .DS_Store
 .Rhistory
 .RData
