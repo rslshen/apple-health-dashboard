@@ -48,12 +48,12 @@ git clone https://github.com/rslshen/apple-health-dashboard.git
 cd apple-health-dashboard
 ```
 
-### 2. Install R, Quarto, and R packages
+### 2. Install R, RStudio, and R packages
 
 Install:
 
 - [R](https://cran.r-project.org/)
-- [Quarto](https://quarto.org/docs/get-started/) for the Pandoc renderer used by R Markdown
+- [RStudio Desktop](https://posit.co/download/rstudio-desktop/)
 
 Then open R and install the packages used by the parser and dashboard:
 
@@ -104,14 +104,18 @@ These CSV files also stay local and are ignored by git.
 
 ### 5. Generate your dashboard
 
-```bash
-Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
+Open this file in RStudio:
+
+```text
+template/Apple_Health_Dashboard_Template.Rmd
 ```
 
-If R cannot find Pandoc, point `RSTUDIO_PANDOC` to your Quarto Pandoc folder and rerun. On macOS with Quarto installed, this is often:
+Click **Knit** to generate the dashboard.
+
+If you prefer using the terminal, run:
 
 ```bash
-RSTUDIO_PANDOC="/Applications/quarto/bin/tools/aarch64" Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
+Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
 ```
 
 Open the generated file:
