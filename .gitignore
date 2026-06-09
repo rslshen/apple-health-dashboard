@@ -1,0 +1,10 @@
+data/raw/
+data/tmp/
+data/processed/*.csv
+!data/processed/.gitkeep
+*.html
+ANLY 512-Course Project.pdf
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/

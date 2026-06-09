@@ -1,0 +1,279 @@
+---
+title: "Apple Health Dashboard"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    theme: flatly
+    source_code: embed
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(plotly)
+
+data_dir <- if (dir.exists("data/processed")) "data/processed" else "../data/processed"
+
+daily <- read_csv(file.path(data_dir, "daily_summary.csv"), show_col_types = FALSE) %>%
+  mutate(
+    date = as_date(date),
+    month = as_date(month),
+    weekday = factor(
+      weekday,
+      levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    ),
+    activity_level = factor(
+      case_when(
+        steps >= 12000 ~ "High",
+        steps >= 6000 ~ "Moderate",
+        is.na(steps) ~ NA_character_,
+        TRUE ~ "Low"
+      ),
+      levels = c("Low", "Moderate", "High")
+    ),
+    high_activity = steps >= quantile(steps, 0.75, na.rm = TRUE),
+    workout_prev_day = lag(had_workout)
+  )
+
+sleep <- read_csv(file.path(data_dir, "sleep_sessions.csv"), show_col_types = FALSE) %>%
+  mutate(wake_date = as_date(wake_date))
+
+workouts <- read_csv(file.path(data_dir, "workouts.csv"), show_col_types = FALSE) %>%
+  mutate(date = as_date(date), month = as_date(month))
+
+monthly_trend <- daily %>%
+  group_by(month) %>%
+  summarise(
+    avg_steps = mean(steps, na.rm = TRUE),
+    avg_sleep = mean(sleep_hours, na.rm = TRUE),
+    avg_energy = mean(active_energy_kcal, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+weekday_summary <- daily %>%
+  group_by(weekday) %>%
+  summarise(
+    avg_steps = mean(steps, na.rm = TRUE),
+    avg_sleep = mean(sleep_hours, na.rm = TRUE),
+    avg_stand = mean(stand_hours, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+workout_types <- workouts %>% count(workout_type, sort = TRUE)
+workout_monthly <- workouts %>% count(month, name = "workouts")
+
+sleep_activity_cor <- cor(daily$steps, daily$sleep_hours, use = "complete.obs")
+step_hrv_cor <- cor(daily$steps, daily$hrv_ms, use = "complete.obs")
+
+recovery_summary <- daily %>%
+  filter(!is.na(high_activity), !is.na(hrv_ms)) %>%
+  group_by(high_activity) %>%
+  summarise(
+    avg_hrv = mean(hrv_ms),
+    avg_rhr = mean(resting_heart_rate, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+theme_dash <- theme_minimal(base_size = 13) +
+  theme(plot.title = element_text(face = "bold", size = 14), legend.position = "bottom")
+```
+
+Overview {data-icon="fa-user"}
+=====================================
+
+Row {data-height=360}
+-------------------------------------
+
+### Project Summary
+
+This dashboard summarizes Apple Health data across activity, sleep, workouts, and recovery. It uses daily aggregation and interactive charts to identify patterns over time.
+
+**Privacy note:** Do not publish raw Apple Health exports, processed personal CSVs, or generated HTML dashboards unless they use fake/sample data.
+
+### Key Metrics
+
+```{r}
+valueBox(comma(round(mean(daily$steps, na.rm = TRUE))), "Avg Daily Steps", icon = "fa-shoe-prints")
+valueBox(round(mean(daily$sleep_hours, na.rm = TRUE), 1), "Avg Sleep (hrs)", icon = "fa-bed", color = "success")
+valueBox(nrow(workouts), "Workout Sessions", icon = "fa-dumbbell", color = "warning")
+valueBox(round(mean(daily$hrv_ms, na.rm = TRUE), 1), "Avg HRV (ms)", icon = "fa-heartbeat", color = "danger")
+```
+
+Activity {data-icon="fa-walking"}
+=====================================
+
+Row {data-height=460}
+-------------------------------------
+
+### Daily Steps And Energy
+
+```{r}
+activity_long <- daily %>%
+  select(date, steps, active_energy_kcal, steps_roll7, active_energy_roll7) %>%
+  pivot_longer(c(steps, active_energy_kcal), names_to = "metric", values_to = "value") %>%
+  mutate(
+    metric = recode(metric, steps = "Steps", active_energy_kcal = "Active Energy (kcal)"),
+    roll_value = if_else(metric == "Steps", steps_roll7, active_energy_roll7)
+  )
+
+p <- ggplot(activity_long, aes(date, value, color = metric, group = metric)) +
+  geom_line(alpha = 0.45) +
+  geom_line(aes(y = roll_value), linewidth = 0.9, na.rm = TRUE) +
+  facet_wrap(~metric, scales = "free_y", ncol = 1) +
+  scale_color_manual(values = c("Steps" = "#2166ac", "Active Energy (kcal)" = "#f46d43")) +
+  scale_y_continuous(labels = label_comma()) +
+  labs(title = "Daily Activity Over Time", x = NULL, y = NULL, color = NULL) +
+  theme_dash +
+  theme(legend.position = "none")
+
+ggplotly(p, tooltip = c("x", "y", "colour")) %>% layout(height = 390, hovermode = "x")
+```
+
+### Analysis
+
+**How to read:** Thin lines show daily values; thick lines show 7-day rolling averages. Panels use separate y-axes.
+
+**Answer:** Use this chart to identify activity spikes, dips, and whether energy generally follows step volume.
+
+Sleep {data-icon="fa-bed"}
+=====================================
+
+Row {data-height=460}
+-------------------------------------
+
+### Sleep By Weekday
+
+```{r}
+p <- daily %>%
+  filter(!is.na(sleep_hours)) %>%
+  ggplot(aes(weekday, sleep_hours)) +
+  geom_boxplot(fill = "#9ecae1", color = "#2166ac", outlier.alpha = 0.3) +
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 3, color = "#08306b") +
+  labs(title = "Sleep Duration By Day Of Week", x = NULL, y = "Hours asleep") +
+  theme_dash
+
+ggplotly(p) %>% layout(height = 380)
+```
+
+### Analysis
+
+**How to read:** Boxes show the middle 50% of sleep nights. The line inside each box is the median; the diamond is the mean.
+
+**Answer:** Compare weekdays to see which nights tend to be shorter, longer, or more variable.
+
+Row {data-height=460}
+-------------------------------------
+
+### Sleep Vs Daily Steps
+
+```{r}
+p <- daily %>%
+  filter(!is.na(steps), !is.na(sleep_hours)) %>%
+  ggplot(aes(steps, sleep_hours, color = activity_level)) +
+  geom_point(alpha = 0.5, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "gray30", inherit.aes = FALSE, aes(x = steps, y = sleep_hours)) +
+  scale_x_continuous(labels = label_comma()) +
+  scale_color_manual(values = c(Low = "#91bfdb", Moderate = "#fc8d59", High = "#d73027"), na.value = "gray70") +
+  labs(title = "Sleep Vs Daily Steps", x = "Daily steps", y = "Sleep (hours)", color = NULL) +
+  theme_dash
+
+ggplotly(p) %>%
+  layout(height = 380, legend = list(orientation = "h", x = 0.5, xanchor = "center", y = -0.25))
+```
+
+### Analysis
+
+**How to read:** Each point is one day. Activity levels are Low (<6,000 steps), Moderate (6,000-11,999), and High (12,000+).
+
+**Answer:** Steps and sleep correlation is **`r round(sleep_activity_cor, 2)`**. Use the spread of points to judge whether activity alone explains sleep duration.
+
+Workouts {data-icon="fa-dumbbell"}
+=====================================
+
+Row {data-height=460}
+-------------------------------------
+
+### Workout Types
+
+```{r}
+p <- workout_types %>%
+  mutate(workout_type = fct_reorder(workout_type, n)) %>%
+  ggplot(aes(n, workout_type, text = paste0(workout_type, ": ", n, " sessions"))) +
+  geom_col(fill = "#1b7837") +
+  labs(title = "Workout Types", x = "Sessions", y = NULL) +
+  theme_dash
+
+ggplotly(p, tooltip = "text") %>% layout(height = 380)
+```
+
+### Analysis
+
+**How to read:** Longer bars indicate more logged sessions.
+
+**Answer:** The most frequent workout type is **`r workout_types$workout_type[1]`** with **`r workout_types$n[1]`** sessions.
+
+Recovery {data-icon="fa-heartbeat"}
+=====================================
+
+Row {data-height=460}
+-------------------------------------
+
+### HRV Vs Daily Steps
+
+```{r}
+p <- daily %>%
+  filter(!is.na(steps), !is.na(hrv_ms)) %>%
+  ggplot(aes(steps, hrv_ms, color = resting_heart_rate)) +
+  geom_point(alpha = 0.55, size = 2) +
+  geom_smooth(aes(group = 1), method = "lm", se = TRUE, color = "gray30") +
+  scale_x_continuous(labels = label_comma()) +
+  scale_color_gradient(low = "#2166ac", high = "#b2182b", na.value = "gray80") +
+  labs(title = "HRV Vs Daily Steps", x = "Steps", y = "HRV (ms)", color = "Resting HR") +
+  theme_dash
+
+ggplotly(p) %>% layout(height = 380)
+```
+
+### Analysis
+
+**How to read:** HRV is heart rate variability. Higher HRV often reflects better recovery; lower HRV can reflect fatigue or stress.
+
+**Answer:** Steps and HRV correlation is **`r round(step_hrv_cor, 2)`**. Compare high-activity days with lower-activity days before drawing conclusions.
+
+Insights {data-icon="fa-lightbulb"}
+=====================================
+
+Row {data-height=500}
+-------------------------------------
+
+### Weekday Heatmap
+
+```{r}
+heat <- weekday_summary %>%
+  pivot_longer(-weekday, names_to = "metric", values_to = "value") %>%
+  mutate(metric = recode(metric, avg_steps = "Steps", avg_sleep = "Sleep (hrs)", avg_stand = "Stand hrs")) %>%
+  group_by(metric) %>%
+  mutate(value_scaled = if (max(value) == min(value)) 0.5 else (value - min(value)) / (max(value) - min(value))) %>%
+  ungroup()
+
+p <- ggplot(heat, aes(metric, weekday, fill = value_scaled)) +
+  geom_tile(color = "white", linewidth = 0.8) +
+  scale_fill_gradient(low = "#deebf7", high = "#2166ac") +
+  labs(title = "Weekday Patterns", x = NULL, y = NULL, fill = "Relative level") +
+  theme_dash
+
+ggplotly(p) %>% layout(height = 420)
+```
+
+### Final Notes
+
+**Summary:** Use the dashboard to compare activity, sleep, workout habits, and recovery signals. Look for consistent patterns, then interpret outliers cautiously.
+
+**Limitations:** Missing watch wear time, travel/jet lag, caffeine, stress, or illness can affect the results. Correlations describe patterns and do not prove causation.
