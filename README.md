@@ -4,7 +4,6 @@ Interactive R/flexdashboard workflow for turning an Apple Health export into a q
 
 ## What Is Included
 
-- `Course_Project_Dashboard.Rmd` - the finished dashboard source used for this project.
 - `scripts/parse_apple_health.R` - parser that converts Apple Health `export.xml` into processed CSV files.
 - `template/Apple_Health_Dashboard_Template.Rmd` - reusable dashboard template for other Apple Health exports.
 - `docs/WORKFLOW.md` - generic AI-assisted workflow for building and refining this type of dashboard.
@@ -20,6 +19,7 @@ This repository intentionally excludes:
 - `data/tmp/`
 - `data/processed/*.csv`
 - `*.html`
+- `Course_Project_Dashboard.Rmd` personal dashboard source
 - local PDFs and R session files
 
 Generated HTML dashboards are also excluded because interactive Plotly HTML can embed underlying data.
@@ -40,27 +40,83 @@ data/
 
 The tracked repository keeps only folder placeholders, not personal data.
 
-## Recreate The Dashboard Locally
+## How To Reuse This Repo
 
-1. Export Apple Health data from iPhone Health app.
-2. Put `export.xml` at `data/raw/export.xml`.
-3. Parse the export:
+Share or clone the whole repository, not just individual files. The repo contains the parser, reusable dashboard template, privacy rules, and AI workflow notes together.
+
+For someone using this with their own Apple Health data:
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/rslshen/apple-health-dashboard.git
+cd apple-health-dashboard
+```
+
+### 2. Install the R packages
+
+In R, install the packages used by the parser and dashboard:
+
+```r
+install.packages(c(
+  "tidyverse",
+  "lubridate",
+  "flexdashboard",
+  "plotly",
+  "scales",
+  "htmltools"
+))
+```
+
+### 3. Export Apple Health data
+
+On iPhone:
+
+1. Open the Health app.
+2. Tap your profile picture.
+3. Select **Export All Health Data**.
+4. Unzip the export.
+5. Copy `apple_health_export/export.xml` into this repo at:
+
+```text
+data/raw/export.xml
+```
+
+The file should stay local. Do not commit it.
+
+### 4. Parse the Apple Health export
+
+Run:
 
 ```bash
 Rscript scripts/parse_apple_health.R
 ```
 
-4. Render the finished dashboard:
+This creates:
 
-```bash
-RSTUDIO_PANDOC="/Applications/quarto/bin/tools/aarch64" Rscript -e 'rmarkdown::render("Course_Project_Dashboard.Rmd")'
+```text
+data/processed/daily_summary.csv
+data/processed/sleep_sessions.csv
+data/processed/workouts.csv
 ```
 
-5. Or render the reusable template:
+These CSV files also stay local and are ignored by git.
+
+### 5. Render the reusable dashboard template
+
+Use the template for a generic dashboard:
 
 ```bash
 RSTUDIO_PANDOC="/Applications/quarto/bin/tools/aarch64" Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
 ```
+
+If Pandoc is already available on your system, this shorter command may work:
+
+```bash
+Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
+```
+
+The generated HTML is ignored by git because it may embed personal data.
 
 ## Reusable Template
 
