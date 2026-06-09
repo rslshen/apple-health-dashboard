@@ -41,10 +41,6 @@ The tracked repository keeps only folder placeholders, not personal data.
 
 ## How To Reuse This Repo
 
-Share or clone the whole repository, not just individual files. The repo contains the parser, reusable dashboard template, privacy rules, and AI workflow notes together.
-
-For someone using this with their own Apple Health data:
-
 ### 1. Clone the repo
 
 ```bash
@@ -101,9 +97,7 @@ data/processed/workouts.csv
 
 These CSV files also stay local and are ignored by git.
 
-### 5. Render the reusable dashboard template
-
-Use the template for a generic dashboard:
+### 5. Generate your dashboard
 
 ```bash
 RSTUDIO_PANDOC="/Applications/quarto/bin/tools/aarch64" Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
@@ -115,17 +109,13 @@ If Pandoc is already available on your system, this shorter command may work:
 Rscript -e 'rmarkdown::render("template/Apple_Health_Dashboard_Template.Rmd")'
 ```
 
-The generated HTML is ignored by git because it may embed personal data.
+Open the generated file:
 
-## Reusable Template
+```text
+template/Apple_Health_Dashboard_Template.html
+```
 
-The template expects the three processed CSV files produced by `scripts/parse_apple_health.R`:
-
-- `daily_summary.csv`
-- `sleep_sessions.csv`
-- `workouts.csv`
-
-Users can replace the local data files with their own processed Apple Health data and render the template to get a similar dashboard.
+This HTML file is your local dashboard. It is ignored by git because it may embed personal data.
 
 ## Data Limitations To Mention
 
